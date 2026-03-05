@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Deque's Color Contrast Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #e0e7ff 0%, #f0f4ff 50%, #dbeafe 100%);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .card {
+      width: 390px; background: #fff; border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.08);
+      overflow: hidden; border: 1px solid #e5e7eb;
+    }
+    .titlebar {
+      background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+      padding: 11px 16px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .titlebar-left { display: flex; align-items: center; gap: 8px; }
+    .titlebar-left img { width: 20px; height: 20px; object-fit: contain; }
+    .titlebar-left span { color: #f1f5f9; font-weight: 700; font-size: 13px; letter-spacing: 0.2px; }
+    .titlebar-dots { display: flex; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .section { padding: 14px 16px; border-bottom: 1px solid #e4e7ec; background: #fff; }
+    .section-label { font-size: 10px; font-weight: 700; color: #6b7280; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.2px; text-align: center; }
+    .inputs-row { display: flex; align-items: flex-end; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .input-group { display: flex; flex-direction: column; gap: 4px; }
+    .input-group label, .input-group span { font-size: 10px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-group input { padding: 6px 9px; border-radius: 6px; border: 1.5px solid #d1d5db; font-size: 12px; font-family: ui-monospace, monospace; outline: none; color: #111827; background: #fff; }
+    .input-group input:focus { border-color: #3b82f6; }
+    .color-row { display: flex; align-items: center; gap: 8px; }
+    .swatch { width: 46px; height: 34px; border-radius: 6px; border: 1.5px solid #d1d5db; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+    .eyedropper-btn { width: 34px; height: 34px; border-radius: 6px; border: 1.5px solid #d1d5db; background: #f9fafb; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
+    .eyedropper-btn:hover { background: #f3f4f6; }
+    .eyedropper-btn:focus { outline: 2px solid #3b82f6; }
+    .preview-box { padding: 10px 16px 12px; border-bottom: 1px solid #e4e7ec; text-align: center; }
+    .preview-small { font-size: 11px; margin-bottom: 3px; opacity: 0.85; }
+    .preview-large { font-size: 24px; font-weight: 800; letter-spacing: -0.3px; }
+    .ratio-box { text-align: center; padding: 12px 0 10px; border-bottom: 1px solid #e4e7ec; background: #f9fafb; }
+    .ratio-label { font-size: 11px; font-weight: 700; color: #374151; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+    .ratio-value { font-size: 52px; font-weight: 500; color: #111827; line-height: 1; letter-spacing: -2px; }
+    .criteria-row { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #e4e7ec; background: #f9fafb; position: relative; }
+    .criteria-row label { font-size: 11px; font-weight: 600; color: #374151; white-space: nowrap; }
+    .criteria-row select { flex: 1; font-size: 11px; padding: 5px 8px; border: 1.5px solid #d1d5db; border-radius: 6px; background: #fff; color: #111827; outline: none; cursor: pointer; font-family: inherit; }
+    .copy-btn { width: 32px; height: 30px; border-radius: 6px; border: 1.5px solid #d1d5db; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+    .copy-btn:hover { background: #f3f4f6; }
+    .copy-btn:focus { outline: 2px solid #3b82f6; }
+    .copy-btn.copied { background: #dcfce7; }
+    .table-wrap { padding: 12px 14px 16px; background: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f3f4f6; padding: 8px 6px; text-align: center; font-weight: 700; border: 1px solid #e5e7eb; color: #374151; font-size: 11px; }
+    td { padding: 8px 6px; text-align: center; border: 1px solid #e5e7eb; font-size: 12px; }
+    td.label-cell { background: #f3f4f6; color: #111827; font-weight: 700; font-size: 13px; }
+    td.pass-cell { background: #dcfce7; color: #166534; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+    td.fail-cell { background: #7f1d1d; color: #fff; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <img src="./logo.png" alt="Deque logo" />
+      <span>Deque's Color Contrast Analyzer</span>
+    </div>
+    <div class="titlebar-dots" aria-hidden="true">
+      <div class="dot" style="background:#f59e0b;box-shadow:0 0 4px #f59e0b88"></div>
+      <div class="dot" style="background:#10b981;box-shadow:0 0 4px #10b98188"></div>
+      <div class="dot" style="background:#ef4444;box-shadow:0 0 4px #ef444488"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Foreground Color</div>
+    <div class="inputs-row">
+      <div class="input-group">
+        <label for="fg-hex">Hex</label>
+        <input id="fg-hex" type="text" maxlength="7" value="#000000" placeholder="#000000" aria-label="Foreground hex" style="width:88px" />
+      </div>
+      <div class="input-group">
+        <label for="fg-rgb">RGB</label>
+        <input id="fg-rgb" type="text" value="0, 0, 0" placeholder="0, 0, 0" aria-label="Foreground RGB" style="width:98px" />
+      </div>
+      <div class="input-group">
+        <span>Color</span>
+        <div class="color-row">
+          <div class="swatch" id="fg-swatch" role="img" aria-label="Foreground color preview"></div>
+          <button class="eyedropper-btn" id="fg-eye" title="Pick foreground color from screen" aria-label="Pick foreground color from screen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Background Color</div>
+    <div class="inputs-row">
+      <div class="input-group">
+        <label for="bg-hex">Hex</label>
+        <input id="bg-hex" type="text" maxlength="7" value="#FFFFFF" placeholder="#000000" aria-label="Background hex" style="width:88px" />
+      </div>
+      <div class="input-group">
+        <label for="bg-rgb">RGB</label>
+        <input id="bg-rgb" type="text" value="255, 255, 255" placeholder="0, 0, 0" aria-label="Background RGB" style="width:98px" />
+      </div>
+      <div class="input-group">
+        <span>Color</span>
+        <div class="color-row">
+          <div class="swatch" id="bg-swatch" role="img" aria-label="Background color preview"></div>
+          <button class="eyedropper-btn" id="bg-eye" title="Pick background color from screen" aria-label="Pick background color from screen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-box" id="preview-box">
+    <p class="preview-small" id="preview-small">Small sample text.</p>
+    <p class="preview-large" id="preview-large">Large sample text.</p>
+  </div>
+
+  <div class="ratio-box">
+    <div class="ratio-label">Contrast Ratio</div>
+    <div class="ratio-value" id="ratio-display" aria-live="polite" aria-atomic="true">—</div>
+  </div>
+
+  <div class="criteria-row">
+    <label for="criteria-select">Criteria</label>
+    <select id="criteria-select" aria-label="Select WCAG criteria"></select>
+    <div class="sr-only" aria-live="polite" id="criteria-announce"></div>
+    <button class="copy-btn" id="copy-btn" title="Copy to clipboard" aria-label="Copy criteria details to clipboard">
+      <svg id="copy-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table aria-label="WCAG 2.1 compliance results">
+      <thead>
+        <tr>
+          <th scope="col">WCAG Standard</th>
+          <th scope="col">Small Text (4.5:1)</th>
+          <th scope="col">Large Text, UI &amp; Graphics (3:1)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label-cell">AA</td>
+          <td id="aa-small" class="pass-cell">PASS</td>
+          <td id="aa-large" class="pass-cell">PASS</td>
+        </tr>
+        <tr>
+          <td class="label-cell">AAA</td>
+          <td id="aaa-small" class="pass-cell">PASS</td>
+          <td id="aaa-large" class="pass-cell">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const CRITERIA = [
+  { label: "1.4.1 a - Focus Indicator (Background)", msg: "The focus indicator relies only on background color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Background color in Focused state", c2: "Background color in Default state" },
+  { label: "1.4.1 a - Focus Indicator (Border)", msg: "The focus indicator relies only on border color change and fails to meet the required color contrast ratio of 3:1 with the default color.", header: "Contrast Details", c1: "Border color in Focused state", c2: "Border color in Default state" },
+  { label: "1.4.1 b - Link Contrast", msg: "The link text for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent text color.", header: "Contrast Details", c1: "Link text color", c2: "Surrounding text color" },
+  { label: "1.4.3 a - Regular Text", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
+  { label: "1.4.3 a - Placeholder Text", msg: "The above-mentioned placeholder text lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details", c1: "Placeholder text color", c2: "Background color" },
+  { label: "1.4.3 a - Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on focus / hover lacks the required color contrast ratio of 4.5:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Link or button text color", c2: "Background color" },
+  { label: "1.4.3 a - Regular Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 4.5:1 with the gradient background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
+  { label: "1.4.3 b - Large Text", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Foreground text color", c2: "Background color" },
+  { label: "1.4.3 b - Large Link or Button Text (Hover / Focus)", msg: "The above-mentioned elements on hover/on focus lack the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details on hover/ on focus", c1: "Foreground text color", c2: "Background color" },
+  { label: "1.4.3 b - Large Text (Gradient)", msg: "The above-mentioned elements lack the required color contrast ratio of 3:1 with the gradient background.", header: "Contrast Details", c1: "Foreground text color", c2: "Background (Gradient) color" },
+  { label: "1.4.11 a - Visual Boundary (Inner)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Inner adjacent color" },
+  { label: "1.4.11 a - Visual Boundary (Outer)", msg: "The visual boundary of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Visual boundary color", c2: "Outer adjacent color" },
+  { label: "1.4.11 b - Focus Indicator (Inner)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Inner adjacent color" },
+  { label: "1.4.11 b - Focus Indicator (Outer)", msg: "The focus indicator for the above-mentioned elements lacks the required color contrast ratio of 3:1 with the background color.", header: "Contrast Details", c1: "Focus indicator color", c2: "Outer adjacent color" },
+  { label: "1.4.11 b - Selected State", msg: "The selected state of the above-mentioned elements lacks the required color contrast ratio of 3:1 with the adjacent color.", header: "Contrast Details", c1: "Selected state color", c2: "Adjacent color" },
+  { label: "1.4.11 b - Icon on Hover", msg: "The above-mentioned icon element does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details on hover", c1: "Icon color", c2: "Adjacent background color" },
+  { label: "1.4.11 c - Icons", msg: "The above-mentioned icon element does not meet the required color contrast ratio of 3:1 with the background.", header: "Contrast Details", c1: "Icon color", c2: "Adjacent background color" },
+  { label: "1.4.11 c - Graphical Object", msg: "The above-mentioned graphical objects fail to meet the required 3:1 color contrast ratio with the background color.", header: "Contrast Details", c1: "Graphical object color", c2: "Adjacent color" },
+  { label: "General", msg: null, header: "Contrast Details", c1: "Foreground color", c2: "Background color" },
+];
+
+const sel = document.getElementById('criteria-select');
+CRITERIA.forEach((c,i) => { const o=document.createElement('option'); o.value=i; o.textContent=c.label; sel.appendChild(o); });
+sel.addEventListener('change', () => { document.getElementById('criteria-announce').textContent = CRITERIA[sel.value].label+' selected'; });
+
+function hexToRgb(hex) { hex=hex.replace(/^#/,''); if(hex.length===3)hex=hex.split('').map(c=>c+c).join(''); const n=parseInt(hex,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function rgbToHex(r,g,b) { return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('').toUpperCase(); }
+function isValidHex(hex) { return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex); }
+function isValidRgb(str) { const p=str.split(',').map(s=>s.trim()); return p.length===3&&p.every(v=>{const n=parseInt(v,10);return !isNaN(n)&&n>=0&&n<=255;}); }
+function luminance({r,g,b}) { const [lr,lg,lb]=[r,g,b].map(c=>{const s=c/255;return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4);}); return 0.2126*lr+0.7152*lg+0.0722*lb; }
+function contrastRatio(h1,h2) { const l1=luminance(hexToRgb(h1)),l2=luminance(hexToRgb(h2)); const [lt,dk]=l1>l2?[l1,l2]:[l2,l1]; return +((lt+0.05)/(dk+0.05)).toFixed(2); }
+
+let fgHex='#000000', bgHex='#FFFFFF';
+
+function updateAll() {
+  document.getElementById('fg-swatch').style.background=fgHex;
+  document.getElementById('bg-swatch').style.background=bgHex;
+  document.getElementById('preview-box').style.background=bgHex;
+  document.getElementById('preview-small').style.color=fgHex;
+  document.getElementById('preview-large').style.color=fgHex;
+  const r=contrastRatio(fgHex,bgHex);
+  document.getElementById('ratio-display').textContent=r+':1';
+  setCell('aa-small',r>=4.5); setCell('aa-large',r>=3);
+  setCell('aaa-small',r>=7); setCell('aaa-large',r>=4.5);
+}
+function setCell(id,pass) { const td=document.getElementById(id); td.className=pass?'pass-cell':'fail-cell'; td.textContent=pass?'PASS':'FAIL'; }
+
+function syncFg(hex) { fgHex=hex.toUpperCase(); const {r,g,b}=hexToRgb(fgHex); document.getElementById('fg-hex').value=fgHex; document.getElementById('fg-rgb').value=`${r}, ${g}, ${b}`; updateAll(); }
+function syncBg(hex) { bgHex=hex.toUpperCase(); const {r,g,b}=hexToRgb(bgHex); document.getElementById('bg-hex').value=bgHex; document.getElementById('bg-rgb').value=`${r}, ${g}, ${b}`; updateAll(); }
+
+document.getElementById('fg-hex').addEventListener('input',e=>{ let v=e.target.value.toUpperCase(); if(!v.startsWith('#'))v='#'+v; e.target.value=v; if(isValidHex(v))syncFg(v); });
+document.getElementById('bg-hex').addEventListener('input',e=>{ let v=e.target.value.toUpperCase(); if(!v.startsWith('#'))v='#'+v; e.target.value=v; if(isValidHex(v))syncBg(v); });
+document.getElementById('fg-rgb').addEventListener('input',e=>{ if(isValidRgb(e.target.value)){const [r,g,b]=e.target.value.split(',').map(s=>parseInt(s.trim(),10)); syncFg(rgbToHex(r,g,b));} });
+document.getElementById('bg-rgb').addEventListener('input',e=>{ if(isValidRgb(e.target.value)){const [r,g,b]=e.target.value.split(',').map(s=>parseInt(s.trim(),10)); syncBg(rgbToHex(r,g,b));} });
+
+async function pickColor(fn) { if(!window.EyeDropper){alert('EyeDropper not supported. Use Chrome 95+.');return;} try{const r=await new EyeDropper().open();fn(r.sRGBHex);}catch(_){} }
+document.getElementById('fg-eye').addEventListener('click',()=>pickColor(syncFg));
+document.getElementById('bg-eye').addEventListener('click',()=>pickColor(syncBg));
+
+document.getElementById('copy-btn').addEventListener('click',()=>{
+  const c=CRITERIA[sel.value];
+  const ratio=document.getElementById('ratio-display').textContent;
+  const descLine=c.msg?`Description of the issue: ${c.msg}\n\n${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`:`${c.header}\n${c.c1}: ${fgHex}\n${c.c2}: ${bgHex}\nContrast Ratio: ${ratio}`;
+  const ta=document.createElement('textarea'); ta.value=`\n${descLine}`; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  const btn=document.getElementById('copy-btn'); btn.classList.add('copied');
+  btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+  setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`; },2000);
+});
+
+updateAll();
+</script>
+</body>
+</html>
